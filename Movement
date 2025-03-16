@@ -1,0 +1,78 @@
+using System;
+using UnityEngine;
+using UnityEngine.Events;
+
+namespace Player.Components
+{
+    public class CarMovement : MonoBehaviour
+    {
+        [Header("Basic")]
+        [SerializeField, Range(0.1f, 100f)] private float strafeTime;
+        [SerializeField, Range(-10, 10)] private float onCoamRoadPos = -2;
+        [SerializeField] private KeyCode pcStrafeButton;
+
+        [Space]
+
+        [SerializeField] private UnityEvent onStrafe;
+
+        [Header("Components")]
+        [SerializeField] private CarSpeedController speedController;
+        [SerializeField] private Animator effectsAnimator;
+
+        [Header("Animator")]
+        [SerializeField] private string animatorIsStrafedLeftName = "IsStrafedLeft";
+
+        public bool CanMove { get; set; } = true;
+
+        private float _roadPosX;
+
+        private void Awake() =>
+            _roadPosX = transform.position.x;
+
+        public void MoveCar()
+        {
+            if (!CanMove)
+                return;
+
+            float currentSpeed = speedController.GetCurrentSpeed;
+
+            transform.Translate(currentSpeed * Time.deltaTime * transform.forward);
+            TryStrafe();
+        }
+
+        private void TryStrafe()
+        {
+            bool input = ReadInput();
+
+            Strafe(input);
+            OnStrafe(input);
+
+            void Strafe(bool isStrafing)
+            {
+                float targetX = isStrafing ? onCoamRoadPos : _roadPosX;
+                MoveTo(targetX);
+            }
+        }
+
+        public bool ReadInput() =>
+            CanMove && (Input.GetMouseButton(0) || Input.GetKey(pcStrafeButton));
+
+
+        private void MoveTo(float targetX)
+        {
+            Vector3 pos = transform.position;
+
+            pos.x = Mathf.Lerp(pos.x, targetX, strafeTime * Time.deltaTime);
+
+            transform.position = pos;
+        }
+
+        private void OnStrafe(bool value)
+        {
+            // Ваши анимации, эффекты и т.д ( если в OnStrafe недостаточно возможностей )
+            effectsAnimator.SetBool(animatorIsStrafedLeftName, value);
+
+            onStrafe?.Invoke();
+        }
+    }
+}
