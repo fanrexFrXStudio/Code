@@ -1,0 +1,99 @@
+using Player.Components;
+using System;
+using UnityEngine;
+
+namespace Game
+{
+    public class ObjectSpawner : MonoBehaviour
+    {
+        [Header("Basic")]
+        [SerializeField] private GameObject[] objects;
+        [SerializeField, Range(-10, 10)] private float yPos, xPos;
+        [SerializeField, Range(0, 500)] private float spawnRangeMin, spawnRangeMax;
+        [SerializeField, Range(0, 50)] private float minTimeToSpawn, maxTimeToSpawn;
+        [SerializeField, Range(0, 100)] private float minimumDistanceBetweenObjs;
+
+        [SerializeField] private Quaternion spawnRotation;
+
+        private float _currentTimeToSpawn = 0;
+
+        private void Start() =>
+            _currentTimeToSpawn = UnityEngine.Random.Range(minTimeToSpawn, maxTimeToSpawn);
+
+        private void OnValidate()
+        {
+            if (spawnRangeMin >= spawnRangeMax)
+                spawnRangeMax = spawnRangeMin--;
+        }
+
+        public void Execute() =>
+            WaitToInstantiate();
+
+        private void WaitToInstantiate()
+        {
+            if (_currentTimeToSpawn <= 0)
+            {
+                _currentTimeToSpawn = UnityEngine.Random.Range(minTimeToSpawn, maxTimeToSpawn);
+
+                var pos = GetRandomSpawnPosition();
+
+                if (pos == Vector3.zero)
+                    return;
+                
+                Instantiate(objects[GetRandomObjectIndex()], pos, spawnRotation, transform);
+
+                return;
+            }
+
+            _currentTimeToSpawn -= Time.deltaTime;
+        }
+
+
+        private Vector3 GetRandomSpawnPosition()
+        {
+            const int maxAttempts = 100; // Ограничиваем количество попыток
+            for (int attempt = 0; attempt < maxAttempts; attempt++)
+            {
+                // Генерация случайной позиции
+                var vector = GetRandomVector();
+
+                // Проверка расстояния до всех дочерних объектов
+                bool isValid = true;
+                for (int j = 0; j < transform.childCount; j++)
+                {
+                    if (Vector3.Distance(vector, transform.GetChild(j).position) < minimumDistanceBetweenObjs)
+                    {
+                        isValid = false;
+                        break;
+                    }
+                }
+
+                // Если позиция валидна, возвращаем её
+                if (isValid)
+                    return vector;
+            }
+
+            // Если после maxAttempts подходящая позиция не найдена
+            Debug.LogWarning("Не удалось найти подходящую позицию для спавна. Если это происходит редко, то это нормально.");
+            return Vector3.zero;
+
+            Vector3 GetRandomVector()
+            {
+                Vector3 pos = new()
+                {
+                    x = xPos,
+                    y = yPos,
+                    z = CarController.Instance.transform.position.z + GetRandomPosZ(spawnRangeMin, spawnRangeMax)
+                };
+
+                return pos;
+            }
+        }
+
+        private float GetRandomPosZ(float min, float max) =>
+            UnityEngine.Random.Range(min, max);
+
+        private int GetRandomObjectIndex() =>
+            UnityEngine.Random.Range(0, objects.Length);
+    }
+}
